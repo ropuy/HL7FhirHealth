@@ -1,0 +1,76 @@
+# Importamos las bibliotecas necesarias
+import io
+import os
+import json
+import base64
+
+# Importamos las bibliotecas de Google Cloud
+from google.cloud import speech_v1p1beta1 as speech
+from google.oauth2 import service_account
+
+# Instalamos la biblioteca PyFHIR
+!pip install -q fhirclient
+
+# Importamos la biblioteca Flask para crear un servidor web
+from flask import Flask, request, jsonify
+from fhirclient import client
+from fhirclient.models.observation import Observation
+
+# Creamos las credenciales para la API de Google Cloud
+credentials = service_account.Credentials.from_service_account_file('/path/to/credentials.json')
+
+# Configuramos el cliente de reconocimiento de voz
+client = speech.SpeechClient(credentials=credentials)
+config = speech.RecognitionConfig(
+    encoding=speech.RecognitionConfig.AudioEncoding.LINEAR16,
+    sample_rate_hertz=16000,
+    language_code='es-MX',
+    audio_channel_count=1,
+)
+
+# Creamos una instancia de la aplicación Flask
+app = Flask(__name__)
+
+# Creamos una instancia del cliente FHIR
+settings = {
+    'app_id': 'my_web_app',
+    'api_base': 'http://localhost:8080/fhir',
+}
+fhir_client = client.FHIRClient(settings=settings)
+
+# Definimos una ruta para la transcripción de voz
+@app.route('/transcribe', methods=['POST'])
+def transcribe():
+    # Obtenemos el contenido del archivo de audio
+    content = request.files['audio'].read()
+
+    # Ejecutamos la solicitud de transcripción de voz
+    audio = speech.RecognitionAudio(content=content)
+    response = client.recognize(config=config, audio=audio)
+
+    # Obtenemos el texto transcrito
+    transcript = response.results[0].alternatives[0].transcript
+
+    # Creamos el recurso de observación en formato HL7 FHIR
+    obs = Observation()
+    obs.status = 'final'
+    obs.code = {
+        'coding': [
+            {
+                'system': 'http://loinc.org',
+                'code': '72168-3',
+                'display': 'Speech or voice interpretation'
+            }
+        ]
+    }
+    obs.valueString = transcript
+
+    # Guardamos la observación en el servidor FHIR
+    obs_response = fhir_client.create(obs)
+
+    # Retornamos la respuesta del servidor FHIR en formato JSON
+    return jsonify(obs_response.as_json())
+
+# Iniciamos el servidor web
+if __name__ == '__main__':
+    app.run(port=5000)
