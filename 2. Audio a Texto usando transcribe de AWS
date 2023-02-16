@@ -1,0 +1,51 @@
+import io
+import os
+import boto3
+import requests
+from IPython.display import display, Audio
+
+# Credenciales para el servicio AWS
+aws_access_key_id = 'AKIAUAAJHTI6L3ZDSY2T'
+aws_secret_access_key = '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'
+region_name = 'us-east-1'
+
+
+# Cliente de transcripción de voz de AWS
+try:
+    transcribe = boto3.client('transcribe', aws_access_key_id=aws_access_key_id, aws_secret_access_key=aws_secret_access_key, region_name=region_name)
+    transcribe.list_vocabularies()
+    print("Conexión a AWS establecida satisfactoriamente")
+except:
+    print("Error al establecer conexión a AWS, revise las credenciales y la región")
+    raise
+
+# Solicitar el archivo de audio
+from google.colab import files
+uploaded = files.upload()
+
+# Nombre del archivo subido
+file_name = list(uploaded.keys())[0]
+
+# Transcribir el archivo de audio
+job_name = 'transcription_job'
+job_uri = f's3://my-bucket/{file_name}'
+transcribe.start_transcription_job(
+    TranscriptionJobName=job_name,
+    Media={'MediaFileUri': job_uri},
+    MediaFormat=file_name.split('.')[-1],
+    LanguageCode='es-ES'
+)
+
+# Esperar a que se complete la transcripción
+while True:
+    status = transcribe.get_transcription_job(TranscriptionJobName=job_name)
+    if status['TranscriptionJob']['TranscriptionJobStatus'] in ['COMPLETED', 'FAILED']:
+        break
+
+# Obtener el texto transcrito
+uri = status['TranscriptionJob']['Transcript']['TranscriptFileUri']
+response = requests.get(uri).json()
+transcript = response['results']['transcripts'][0]['transcript']
+
+# Imprimir el texto transcrito
+print('Texto transcrito:', transcript)
