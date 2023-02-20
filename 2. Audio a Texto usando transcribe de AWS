@@ -5,8 +5,8 @@ import requests
 from IPython.display import display, Audio
 
 # Credenciales para el servicio AWS
-aws_access_key_id = 'AKIAUAAJHTI6L3ZDSY2T'
-aws_secret_access_key = '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'
+aws_access_key_id = 'KEY_PRUEBA'
+aws_secret_access_key = 'KEY_PRIVATE_PRUEBA
 region_name = 'us-east-1'
 
 
