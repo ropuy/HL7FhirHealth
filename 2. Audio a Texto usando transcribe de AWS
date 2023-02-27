@@ -48,4 +48,4 @@ response = requests.get(uri).json()
 transcript = response['results']['transcripts'][0]['transcript']
 
 # Imprimir el texto transcrito
-print('Texto transcrito:', transcript)
+print('Texto transcrito:', transcript) 
